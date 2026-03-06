@@ -105,6 +105,8 @@ class NeuralNetwork:
         # Using explicit object arrays avoids numpy broadcasting across
         # differently-shaped gradient matrices.
         # ✅ FIXED: DO NOT reverse - last layer first is correct
+        grad_W_list = grad_W_list[::-1]
+        grad_b_list = grad_b_list[::-1]
         self.grad_W = np.empty(len(grad_W_list), dtype=object)
         self.grad_b = np.empty(len(grad_b_list), dtype=object)
         for i, (gw, gb) in enumerate(zip(grad_W_list, grad_b_list)):
