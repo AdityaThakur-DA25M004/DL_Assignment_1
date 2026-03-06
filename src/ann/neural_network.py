@@ -69,11 +69,18 @@ class NeuralNetwork:
 
         # Output layer gradient: combined loss + output activation
         if self.loss_name=="cross_entropy":
-            Z_shifted = y_pred- y_pred.max(axis=1,keepdims=True)
-            exp_z = np.exp(Z_shifted)
-            probs= exp_z/exp_z.sum(axis=1,keepdims=True)
-            # ✅ FIXED: Divide by batch size HERE (not in layer backward)
-            dL_dZ_out = (probs - y_true) / N
+            # Z_shifted = y_pred- y_pred.max(axis=1,keepdims=True)
+            # exp_z = np.exp(Z_shifted)
+            # probs= exp_z/exp_z.sum(axis=1,keepdims=True)
+            # # ✅ FIXED: Divide by batch size HERE (not in layer backward)
+            # dL_dZ_out = (probs - y_true) / N
+            # dL_dZ_out = self.loss_fn.backward(y_pred, y_true)
+
+            probs = np.exp(y_pred - y_pred.max(axis=1, keepdims=True))
+            probs /= probs.sum(axis=1, keepdims=True)
+
+            dL_dZ_out = self.loss_fn.backward(probs, y_true)
+
         else:
             # MSE + Identity: dL/dZ = 2(Z − y_true) / N
             # ✅ FIXED: Divide by batch size HERE (not in layer backward)
@@ -104,14 +111,16 @@ class NeuralNetwork:
         # ── Pack as numpy object arrays (index 0 = last/output layer) ─────────
         # Using explicit object arrays avoids numpy broadcasting across
         # differently-shaped gradient matrices.
-        # ✅ FIXED: DO NOT reverse - last layer first is correct
         grad_W_list = grad_W_list[::-1]
         grad_b_list = grad_b_list[::-1]
-        self.grad_W = np.empty(len(grad_W_list), dtype=object)
-        self.grad_b = np.empty(len(grad_b_list), dtype=object)
-        for i, (gw, gb) in enumerate(zip(grad_W_list, grad_b_list)):
-            self.grad_W[i] = gw
-            self.grad_b[i] = gb
+        # self.grad_W = np.empty(len(grad_W_list), dtype=object)
+        # self.grad_b = np.empty(len(grad_b_list), dtype=object)
+        # for i, (gw, gb) in enumerate(zip(grad_W_list, grad_b_list)):
+        #     self.grad_W[i] = gw
+        #     self.grad_b[i] = gb
+
+        self.grad_W = grad_W_list
+        self.grad_b = grad_b_list
 
         return self.grad_W, self.grad_b
 
