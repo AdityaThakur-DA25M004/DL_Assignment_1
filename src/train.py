@@ -14,16 +14,20 @@ W&B logging covers ALL 10 report sections:
   Section 2.9  Weight Init/Symmetry -- per-neuron gradients for first 50 steps
   Section 2.10 Fashion-MNIST      -- use --dataset fashion_mnist flag 
 """
+import json
 
 import argparse
 import numpy as np
 import os
 import wandb
 
-from src.ann.neural_network import NeuralNetwork
-from src.utils.data_loader import load_data,one_hot,DataLoader,get_sample_images,get_class_distribution
-from src.utils.metrics import evaluate_model,print_metrics
+from ann.neural_network import NeuralNetwork
+from utils.data_loader import load_data,one_hot,DataLoader,get_sample_images,get_class_distribution
+from utils.metrics import evaluate_model,print_metrics
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
 # Reproducibilty
 def set_seed(seed=42):
     np.random.seed(seed)
@@ -207,10 +211,11 @@ sweep_config = {
             "values": [
                 "128",
                 "128-64",
-                "128-128",
+                "128-32",
                 "128-64-32",
                 "128-128-64",
-                "64-64-64"
+                "64-64-64",
+                "64-32"
             ]
         },
         "weight_decay":{
@@ -265,6 +270,7 @@ def run_sweep(project_name,sweep_count=100):
 # Training Loop 
 def train_inner(args,run_already_init=False):
     """Full Training loop used by both normal training and sweep."""
+
     set_seed(42)
 
     # W&B init (skipped when sweep already did it)
@@ -290,7 +296,6 @@ def train_inner(args,run_already_init=False):
             tags=[args.dataset, args.optimizer,args.activation,args.weight_init],
             notes=f"{args.num_layers} hidden layers, init={args.weight_init}",
         )
-
     print("Training Neural Network")
     print("="*60)
     print(f"Dataset: {args.dataset}")
@@ -306,9 +311,10 @@ def train_inner(args,run_already_init=False):
     y_val_oh = one_hot(y_val,num_classes=10)
     y_test_oh = one_hot(y_test,num_classes=10)
 
-    # validation and test loaders stay fixed
+    train_loader = DataLoader(x_train,y_train_oh,batch_size=args.batch_size,shuffle=True)
     val_loader =  DataLoader(x_val,y_val_oh,batch_size=args.batch_size,shuffle=False)
     test_loader = DataLoader(x_test,y_test_oh,batch_size=args.batch_size,shuffle=False)
+
 
     val_probe = x_val[:256]
 
@@ -317,7 +323,7 @@ def train_inner(args,run_already_init=False):
         "Sandal",      "Shirt",   "Sneaker",  "Bag",   "Ankle boot"
     ]
     class_names = (FASHION_LABELS if args.dataset == 'fashion_mnist'
-                else [str(i) for i in range(10)])
+                   else [str(i) for i in range(10)])
 
     # Data Exploration (once, before training)
     print("Logging data exploration to W&B")
@@ -335,19 +341,11 @@ def train_inner(args,run_already_init=False):
     global_step      = 0
 
     for epoch in range(args.epochs):
-
-        # recreate train loader every epoch (ensures reshuffling)
-        train_loader = DataLoader(
-            x_train,
-            y_train_oh,
-            batch_size=args.batch_size,
-            shuffle=True
-        )
-
         for key in model.gradient_norms:
             model.gradient_norms[key]=[]
         for key in model.activation_stats:
             model.activation_stats[key]=[]
+        
 
         # Train
         train_losses=[]
@@ -364,7 +362,7 @@ def train_inner(args,run_already_init=False):
 
             train_preds.extend(np.argmax(model.last_output,axis=1))
             train_labels_list.extend(np.argmax(y_batch, axis=1))
-
+        
         # Validate
         val_preds =[]
         val_labels_list=[]
@@ -383,26 +381,24 @@ def train_inner(args,run_already_init=False):
 
         train_metrics = evaluate_model(train_preds_arr, train_labels_arr)
         val_metrics   = evaluate_model(val_preds_arr,   val_labels_arr)
-
         train_loss    = float(np.mean(train_losses))
         val_loss      = float(np.mean(val_losses))
 
-        # Early stopping
+         # Early stopping
         if val_metrics['f1'] > best_val_f1:
             best_val_f1      = val_metrics['f1']
             best_val_acc     = val_metrics['accuracy']
             best_epoch       = epoch
             patience_counter = 0
-
-            os.makedirs('checkpoints', exist_ok=True)
-
+            os.makedirs(MODELS_DIR, exist_ok=True)
             model.save(
-                f'checkpoints/best_model_{args.dataset}.npy',
-                f'checkpoints/best_config_{args.dataset}.json'
+                os.path.join(MODELS_DIR, f'best_model_{args.dataset}.npy'),
+                os.path.join(MODELS_DIR, f'best_config_{args.dataset}.json')
             )
         else:
             patience_counter += 1
 
+        # W&B logging ──────────────────────────────────────────────────────────
         wandb.log({
             "epoch": epoch,
             "train/loss": train_loss,
@@ -417,27 +413,67 @@ def train_inner(args,run_already_init=False):
             'val/f1':          val_metrics['f1'],
         })
 
+        # Section 2.6 -- loss comparison (MSE vs CE overlay)
         log_loss_comparison(epoch, train_loss, val_loss, args.loss)
+
+        # Section 2.4 -- gradient norms
         log_gradient_norms(model, epoch)
+
+        # Section 2.5 -- dead neurons
         log_dead_neurons(model, val_probe)
 
         if (epoch + 1) % 5 == 0:
             print(f"\nEpoch {epoch + 1}/{args.epochs}")
             print(f"  Train Loss: {train_loss:.6f}  |  Val Loss: {val_loss:.6f}")
             print(f"  Train Acc:  {train_metrics['accuracy']:.4f}  "
-                f"|  Val Acc: {val_metrics['accuracy']:.4f}")
+                  f"|  Val Acc: {val_metrics['accuracy']:.4f}")
             print(f"  Train F1:   {train_metrics['f1']:.4f}  "
-                f"|  Val F1:  {val_metrics['f1']:.4f}")
+                  f"|  Val F1:  {val_metrics['f1']:.4f}")
 
         if patience_counter >= patience:
             print(f"\nEarly stopping at epoch {epoch + 1} "
-                f"(no improvement for {patience} epochs)")
+                  f"(no improvement for {patience} epochs)")
             break
 
 
-    # Test phase
+
+    # ─────────────────────────────────────────────────────────────────
+    # LOAD BEST MODEL FROM CHECKPOINT
+    # ─────────────────────────────────────────────────────────────────
     print("\n" + "=" * 60)
-    print("TESTING ON HELD-OUT TEST SET")
+    print("LOADING BEST MODEL FROM CHECKPOINT")
+    print("=" * 60 + "\n")
+    
+    checkpoint_path = os.path.join(MODELS_DIR, f'best_model_{args.dataset}.npy')
+    checkpoint_config = os.path.join(MODELS_DIR, f'best_config_{args.dataset}.json')
+    
+
+    if os.path.exists(checkpoint_path) and os.path.exists(checkpoint_config):
+
+        # Load saved architecture
+        with open(checkpoint_config, "r") as f:
+            saved_config = json.load(f)
+
+        args.hidden_size = saved_config["hidden_sizes"]
+        args.num_layers = len(args.hidden_size)
+        # Rebuild model using saved architecture
+        model = NeuralNetwork(args)
+
+        # Load weights
+        model.load_weights(checkpoint_path)
+
+        print("✓ Loaded best model from checkpoint")
+        print(f"  Path: {checkpoint_path}")
+        print(f"  Best validation F1: {best_val_f1:.4f}")
+        print(f"  Best validation Accuracy: {best_val_acc:.4f}")
+
+    else:
+        print(f"⚠ WARNING: Checkpoint not found at {checkpoint_path}")
+        print(f"  Using current model (may not be optimal)")
+
+    # Test phase - USING BEST MODEL
+    print("\n" + "=" * 60)
+    print("TESTING BEST MODEL ON HELD-OUT TEST SET")
     print("=" * 60 + "\n")
 
     test_preds_list  = []
@@ -466,13 +502,28 @@ def train_inner(args,run_already_init=False):
     log_global_performance(final_train_acc, best_val_acc, test_metrics['accuracy'])
     log_confusion_matrix(test_preds_arr, test_labels_arr, class_names)
 
-    save_dir = args.model_save_path
+    # ─────────────────────────────────────────────────────────────────
+    # SAVE BEST MODEL TO FINAL LOCATION
+    # ─────────────────────────────────────────────────────────────────
+    save_dir = MODELS_DIR
     os.makedirs(save_dir, exist_ok=True)
 
     model.save(
         os.path.join(save_dir, f'best_model_{args.dataset}.npy'),
         os.path.join(save_dir, f'best_config_{args.dataset}.json')
     )
+    
+    print(f"\n" + "=" * 60)
+    print("✓ MODEL SAVED SUCCESSFULLY")
+    print("=" * 60)
+    print(f"Best model path: {os.path.join(save_dir, f'best_model_{args.dataset}.npy')}")
+    print(f"Config path:     {os.path.join(save_dir, f'best_config_{args.dataset}.json')}")
+    print(f"\nTest Performance (Best Model):")
+    print(f"  Accuracy:  {test_metrics['accuracy']:.4f}")
+    print(f"  Precision: {test_metrics['precision']:.4f}")
+    print(f"  Recall:    {test_metrics['recall']:.4f}")
+    print(f"  F1-Score:  {test_metrics['f1']:.4f}")
+    print("=" * 60)
 
     if not run_already_init:
         wandb.finish()
@@ -534,7 +585,7 @@ def parse_arguments():
                         help='Weight initialisation strategy')
 
     # Extra arguments
-    parser.add_argument('-gc',  '--gradient_clip', type=float, default=5.0,
+    parser.add_argument('-gc',  '--gradient_clip', type=float, default=1.0,
                         help='Global-norm gradient clipping threshold (0 = disabled)')
 
     parser.add_argument('--wandb_project',   type=str, default='da6401_assignment_1',
@@ -551,11 +602,14 @@ def parse_arguments():
 
     args = parser.parse_args()
 
+    # Ensure compatibility between number of layers and hidden sizes
     if len(args.hidden_size) != args.num_layers:
-        print(f"Warning: {len(args.hidden_size)} hidden-layer sizes provided "
-              f"but --num_layers={args.num_layers}. "
-              f"Using provided sizes: {args.hidden_size}")
-        args.num_layers = len(args.hidden_size)
+        raise ValueError(
+            f"Mismatch between --num_layers and --hidden_size.\n"
+            f"num_layers = {args.num_layers}, but hidden_size list = {args.hidden_size}\n"
+            f"Please ensure len(hidden_size) == num_layers.\n"
+            f"Example: -nhl 3 -sz 128 128 64"
+        )
 
     args.input_size  = 784
     args.output_size = 10

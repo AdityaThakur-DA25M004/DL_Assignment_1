@@ -6,9 +6,9 @@ Outputs: Accuracy, Precision , Recall and F1 score.
 
 import argparse
 import numpy as np
-from src.ann.neural_network import NeuralNetwork
-from src.utils.data_loader import load_data,one_hot,DataLoader
-from src.utils.metrics import evaluate_model as compute_metrics
+from ann.neural_network import NeuralNetwork
+from utils.data_loader import load_data,one_hot,DataLoader
+from utils.metrics import evaluate_model as compute_metrics
 
 
 def parse_arguments():
@@ -41,7 +41,7 @@ def parse_arguments():
 
     parser.add_argument("-wi","--weight_init",type=str,default="xavier",choices=["random","xavier","he","zeros"],help="Weight Initialization")
 
-    parser.add_argument("-gc","--gradient_clip",type=float,default=1.0,help="Gradient clipping threshold")
+    parser.add_argument("-gc","--gradient_clip",type=float,default=5.0,help="Gradient clipping threshold")
 
     args = parser.parse_args()
 
