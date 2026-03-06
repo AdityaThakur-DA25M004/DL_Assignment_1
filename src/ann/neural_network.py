@@ -78,9 +78,7 @@ class NeuralNetwork:
 
             probs = np.exp(y_pred - y_pred.max(axis=1, keepdims=True))
             probs /= probs.sum(axis=1, keepdims=True)
-
-            dL_dZ_out = self.loss_fn.backward(probs, y_true)
-
+            dL_dZ_out = (probs - y_true) / N            
         else:
             # MSE + Identity: dL/dZ = 2(Z − y_true) / N
             # ✅ FIXED: Divide by batch size HERE (not in layer backward)
@@ -111,8 +109,8 @@ class NeuralNetwork:
         # ── Pack as numpy object arrays (index 0 = last/output layer) ─────────
         # Using explicit object arrays avoids numpy broadcasting across
         # differently-shaped gradient matrices.
-        grad_W_list = grad_W_list[::-1]
-        grad_b_list = grad_b_list[::-1]
+        grad_W_list.reverse()
+        grad_b_list.reverse()
         # self.grad_W = np.empty(len(grad_W_list), dtype=object)
         # self.grad_b = np.empty(len(grad_b_list), dtype=object)
         # for i, (gw, gb) in enumerate(zip(grad_W_list, grad_b_list)):
