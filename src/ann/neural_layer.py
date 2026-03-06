@@ -30,10 +30,14 @@ class DenseLayer:
         """
         Forward pass:
         Z = XW + b
+        
+        ⚠️ CRITICAL FIX: Store a copy of input, not a reference
+        This prevents state aliasing issues if input is modified or reused elsewhere
         """
-        self.X=input
-        self.Z = input @ self.W +self.b
+        self.X = input.copy()  # ✅ COPY, not reference
+        self.Z = input @ self.W + self.b
         return self.Z # pass to next layer
+    
     def backward(self,dL_dZ):
         """
         Backward pass.
@@ -49,8 +53,10 @@ class DenseLayer:
 
     def get_weights(self):
         return self.W,self.b
+    
     def get_gradients(self):
         return self.grad_W,self.grad_b
+    
     def set_weights(self,W,b):
         self.W = W.copy()
-        self.b = b.copy()     
+        self.b = b.copy()

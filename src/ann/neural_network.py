@@ -74,24 +74,10 @@ class NeuralNetwork:
 
         # Output layer gradient: combined loss + output activation
         if self.loss_name=="cross_entropy":
-        #     Z_shifted = y_pred- y_pred.max(axis=1,keepdims=True)
-        #     exp_z = np.exp(Z_shifted)
-        #     probs= exp_z/exp_z.sum(axis=1,keepdims=True)
-        #     dL_dZ_out = (probs-y_true)/N
-
-        # Check if input is already softmax probabilities
-            row_sums = np.sum(y_pred, axis=1, keepdims=True)
-
-            if np.allclose(row_sums, 1.0, atol=1e-5):
-                probs = y_pred
-            else:
-                # Apply softmax if logits
-                Z_shifted = y_pred - np.max(y_pred, axis=1, keepdims=True)
-                exp_z = np.exp(Z_shifted)
-                probs = exp_z / np.sum(exp_z, axis=1, keepdims=True)
-
-            dL_dZ_out = (probs - y_true) / y_true.shape[0]
-    
+            Z_shifted = y_pred- y_pred.max(axis=1,keepdims=True)
+            exp_z = np.exp(Z_shifted)
+            probs= exp_z/exp_z.sum(axis=1,keepdims=True)
+            dL_dZ_out = (probs-y_true)/y_true.shape[0]
         else:
             # MSE + Identity: dL/dZ = (2/N)(Z − y_true)
             dL_dZ_out = (2.0 / N) * (y_pred - y_true)
