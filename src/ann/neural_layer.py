@@ -46,6 +46,7 @@ class DenseLayer:
         self.grad_b = np.sum(dL_dZ,axis=0,keepdims=True)
         dL_dX = dL_dZ @ self.W.T
         return dL_dX  # pass to previous layer
+
     def get_weights(self):
         return self.W,self.b
     def get_gradients(self):

@@ -78,6 +78,7 @@ class NeuralNetwork:
             exp_z = np.exp(Z_shifted)
             probs= exp_z/exp_z.sum(axis=1,keepdims=True)
             dL_dZ_out = (probs-y_true)/N
+    
         else:
             # MSE + Identity: dL/dZ = (2/N)(Z − y_true)
             dL_dZ_out = (2.0 / N) * (y_pred - y_true)
@@ -106,6 +107,8 @@ class NeuralNetwork:
         # ── Pack as numpy object arrays (index 0 = last/output layer) ─────────
         # Using explicit object arrays avoids numpy broadcasting across
         # differently-shaped gradient matrices.
+        grad_W_list.reverse()
+        grad_b_list.reverse()
         self.grad_W = np.empty(len(grad_W_list), dtype=object)
         self.grad_b = np.empty(len(grad_b_list), dtype=object)
         for i, (gw, gb) in enumerate(zip(grad_W_list, grad_b_list)):
