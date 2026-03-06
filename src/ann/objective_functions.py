@@ -22,11 +22,17 @@ class MSE(Loss):
         squared_error = (y_pred-y_true)**2
         loss = np.sum(squared_error)/batch_size
         return loss
-    def backward(self, Y_pred, Y_true):
-        batch_size = Y_pred.shape[0]
-        dL_dY_pred = (2.0 / batch_size) * (Y_pred - Y_true)
-        
-        return dL_dY_pred
+    
+    def backward(self, y_pred, y_true):
+        """
+        ✅ FIXED: Following Prasad's MSE backward
+        Returns: 2 * (y_pred - y_true) / batch_size
+        with the softmax jacobian transformation
+        """
+        n = len(y_pred)
+        grad = 2.0 * (y_pred - y_true) / n
+        tmp = np.sum(grad * y_pred, axis=1, keepdims=True)
+        return y_pred * (grad - tmp)
     
     def get_name(self):
         return "mse"
@@ -35,16 +41,21 @@ class CrossEntropy(Loss):
     def forward(self,y_pred,y_true):
         batch_size = y_pred.shape[0]
         # Clip predictions to avoid log(0)
-        Y_pred_clipped = np.clip(y_pred, 1e-10, 1.0)     
+        y_pred_clipped = np.clip(y_pred, 1e-10, 1.0)     
         # Cross-entropy: -Σ(Y_true * log(Y_pred))
-        loss = -np.sum(y_true * np.log(Y_pred_clipped)) / batch_size
+        loss = -np.sum(y_true * np.log(y_pred_clipped)) / batch_size
         
         return loss
-    def backward(self,y_pred,y_true):
-        batch_size = y_pred.shape[0]
-        Y_pred_clipped = np.clip(y_pred, 1e-10, 1 - 1e-10)
-        dL_dA = -y_true / (Y_pred_clipped * batch_size)
-        return dL_dA
+    
+    def backward(self, y_pred, y_true):
+        """
+        Simple formula: (y_pred - y_true) / batch_size
+        
+        This is the gradient of cross-entropy + softmax combined
+        """
+        batch_size = len(y_pred)
+        return (y_pred - y_true) / batch_size
+    
     def get_name(self):
         return "cross_entropy"
 
