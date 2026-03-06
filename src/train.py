@@ -591,7 +591,7 @@ def parse_arguments():
                         help='Weight initialisation strategy')
 
     # Extra arguments
-    parser.add_argument('-gc',  '--gradient_clip', type=float, default=1.0,
+    parser.add_argument('-gc',  '--gradient_clip', type=float, default=0.0,
                         help='Global-norm gradient clipping threshold (0 = disabled)')
 
     parser.add_argument('--wandb_project',   type=str, default='da6401_assignment_1',

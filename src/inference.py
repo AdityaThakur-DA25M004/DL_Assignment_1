@@ -41,7 +41,7 @@ def parse_arguments():
 
     parser.add_argument("-wi","--weight_init",type=str,default="xavier",choices=["random","xavier","he","zeros"],help="Weight Initialization")
 
-    parser.add_argument("-gc","--gradient_clip",type=float,default=5.0,help="Gradient clipping threshold")
+    parser.add_argument("-gc","--gradient_clip",type=float,default=0.0,help="Gradient clipping threshold")
 
     args = parser.parse_args()
 
