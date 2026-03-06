@@ -1,0 +1,16 @@
+{
+    "input_size": 784,
+    "hidden_sizes": [
+        128,
+        64,
+        32
+    ],
+    "output_size": 10,
+    "activation": "relu",
+    "loss": "cross_entropy",
+    "weight_init": "xavier",
+    "optimizer": "rmsprop",
+    "learning_rate": 0.0005,
+    "weight_decay": 0.0008,
+    "gradient_clip": 1.0
+}
