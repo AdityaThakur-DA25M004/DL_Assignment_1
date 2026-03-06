@@ -15,7 +15,7 @@ def parse_arguments():
     parser = argparse.ArgumentParser(description="Run inference on test set")
 
     # model path
-    parser.add_argument('--model_path',type=str,default='models/best_model_mnist.npy',help="Path to save model weights(relative path)")
+    parser.add_argument('--model_path',type=str,default='src/best_model.npy',help="Path to save model weights(relative path)")
 
     # dataset
     parser.add_argument('-d','--dataset',type=str,default='mnist',choices=["mnist","fashion_mnist"],help="Dataset to evaluate on")

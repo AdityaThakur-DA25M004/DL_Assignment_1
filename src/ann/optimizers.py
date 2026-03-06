@@ -2,8 +2,8 @@ import numpy as np
 
 
 class SGD:
-    def __init__(self,lr=0.01,weight_decay=0.0):
-        self.lr = lr
+    def __init__(self,learning_rate=0.01,weight_decay=0.0):
+        self.lr = learning_rate
         self.weight_decay = weight_decay
     def update(self,layer):
         # get gradients

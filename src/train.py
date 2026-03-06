@@ -27,7 +27,7 @@ from utils.metrics import evaluate_model,print_metrics
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-MODELS_DIR = os.path.join(PROJECT_ROOT, "models")
+MODELS_DIR = os.path.join(PROJECT_ROOT, "src")
 # Reproducibilty
 def set_seed(seed=42):
     np.random.seed(seed)
@@ -392,8 +392,8 @@ def train_inner(args,run_already_init=False):
             patience_counter = 0
             os.makedirs(MODELS_DIR, exist_ok=True)
             model.save(
-                os.path.join(MODELS_DIR, f'best_model_{args.dataset}.npy'),
-                os.path.join(MODELS_DIR, f'best_config_{args.dataset}.json')
+                os.path.join(MODELS_DIR, f'best_model.npy'),
+                os.path.join(MODELS_DIR, f'best_config.json')
             )
         else:
             patience_counter += 1
@@ -444,8 +444,8 @@ def train_inner(args,run_already_init=False):
     print("LOADING BEST MODEL FROM CHECKPOINT")
     print("=" * 60 + "\n")
     
-    checkpoint_path = os.path.join(MODELS_DIR, f'best_model_{args.dataset}.npy')
-    checkpoint_config = os.path.join(MODELS_DIR, f'best_config_{args.dataset}.json')
+    checkpoint_path = os.path.join(MODELS_DIR, f'best_model.npy')
+    checkpoint_config = os.path.join(MODELS_DIR, f'best_config.json')
     
 
     if os.path.exists(checkpoint_path) and os.path.exists(checkpoint_config):
@@ -506,11 +506,17 @@ def train_inner(args,run_already_init=False):
     # SAVE BEST MODEL TO FINAL LOCATION
     # ─────────────────────────────────────────────────────────────────
     save_dir = MODELS_DIR
-    os.makedirs(save_dir, exist_ok=True)
+    # os.makedirs(save_dir, exist_ok=True)
 
+    # model.save(
+    #     os.path.join(save_dir, f'best_model_{args.dataset}.npy'),
+    #     os.path.join(save_dir, f'best_config_{args.dataset}.json')
+    # )
+
+    os.makedirs('src', exist_ok=True)
     model.save(
-        os.path.join(save_dir, f'best_model_{args.dataset}.npy'),
-        os.path.join(save_dir, f'best_config_{args.dataset}.json')
+        f'src/best_model.npy',
+        f'src/best_config.json'
     )
     
     print(f"\n" + "=" * 60)
